@@ -25,7 +25,7 @@ import karino2.livejournal.com.mpd2issue.Cell
 import karino2.livejournal.com.mpd2issue.Note
 import java.io.StringWriter
 
-class LoginActivity : AppCompatActivity() {
+class Mpd2EbookActivity : AppCompatActivity() {
     companion object {
         fun getAppPreferences(ctx : Context) = ctx.getSharedPreferences("prefs", Context.MODE_PRIVATE)
 
