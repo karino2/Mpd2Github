@@ -1,8 +1,13 @@
 package io.github.karino2.mpd2github
 
 import android.app.Dialog
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.support.v7.app.AlertDialog
+import android.support.v7.app.NotificationCompat
 import android.widget.EditText
 import com.google.gson.Gson
 import com.google.gson.internal.Streams
@@ -19,13 +24,52 @@ class Mpd2BlogActivity : GithubPostBaseActivity() {
 
     companion object {
         const val URL_INPUT_DIALOG_ID = 1
+        const val NOTIFICATION_ID = 2
     }
+
+
+    private fun showPostIdNotification() {
+        val builder = NotificationCompat.Builder(this)
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setContentTitle("Ipynb2Blog")
+                .setContentText("PostId:$postId")
+
+
+        /*
+        val intentCopy = Intent(this, CopyIdReceiver::class.java)
+        intentCopy.putExtra("postid", "PostId:$postId")
+        val piCopy = PendingIntent.getBroadcast(this, 1,intentCopy,  PendingIntent.FLAG_UPDATE_CURRENT)
+
+        builder.addAction(android.R.drawable.ic_menu_edit, "Id", piCopy);
+
+
+        val intent = Intent(Intent.ACTION_VIEW)
+        val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+        builder.setContentIntent(pendingIntent)
+
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(NOTIFICATION_ID, builder.build())
+        */
+
+        val intentCopy = Intent(this, CopyIdReceiver::class.java)
+        intentCopy.putExtra("postid", "PostId:$postId")
+        val piCopy = PendingIntent.getBroadcast(this, 1,intentCopy,  PendingIntent.FLAG_UPDATE_CURRENT)
+        builder.setContentIntent(piCopy)
+
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(NOTIFICATION_ID, builder.build())
+
+    }
+
 
     // 2017-09-10-17.md
 
     // 2017-09-10-123456
     val generatedId by lazy {
         val tsf = SimpleDateFormat("yyyy-MM-dd-HHmmss")
+        AndroidSchedulers.mainThread().scheduleDirect {
+            showPostIdNotification()
+        }
         tsf.format(Date())
     }
 
@@ -57,7 +101,6 @@ class Mpd2BlogActivity : GithubPostBaseActivity() {
                 builder.setPositiveButton("Save") { di, bid ->
                     saveOwnerRepo(et.text.toString())
                     AndroidSchedulers.mainThread().scheduleDirect {
-                        // notification here.
                         checkValidTokenAndGotoTopIfValid()
                     }
                 }
@@ -76,8 +119,6 @@ class Mpd2BlogActivity : GithubPostBaseActivity() {
         }
 
     }
-
-    var idGenerated = false
 
     val postId : String
         get() {
