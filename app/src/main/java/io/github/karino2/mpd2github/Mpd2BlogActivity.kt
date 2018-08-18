@@ -9,11 +9,9 @@ import android.net.Uri
 import android.support.v7.app.AlertDialog
 import android.support.v7.app.NotificationCompat
 import android.widget.EditText
-import com.google.gson.Gson
 import com.google.gson.internal.Streams
 import com.google.gson.stream.JsonWriter
 import io.reactivex.android.schedulers.AndroidSchedulers
-import karino2.livejournal.com.mpd2issue.Cell
 import karino2.livejournal.com.mpd2issue.Note
 import java.io.File
 import java.io.StringWriter
@@ -35,22 +33,6 @@ class Mpd2BlogActivity : GithubPostBaseActivity() {
                 .setContentText("PostId:$postId")
 
 
-        /*
-        val intentCopy = Intent(this, CopyIdReceiver::class.java)
-        intentCopy.putExtra("postid", "PostId:$postId")
-        val piCopy = PendingIntent.getBroadcast(this, 1,intentCopy,  PendingIntent.FLAG_UPDATE_CURRENT)
-
-        builder.addAction(android.R.drawable.ic_menu_edit, "Id", piCopy);
-
-
-        val intent = Intent(Intent.ACTION_VIEW)
-        val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT)
-        builder.setContentIntent(pendingIntent)
-
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(NOTIFICATION_ID, builder.build())
-        */
-
         val intentCopy = Intent(this, CopyIdReceiver::class.java)
         intentCopy.putExtra("postid", "PostId:$postId")
         val piCopy = PendingIntent.getBroadcast(this, 1,intentCopy,  PendingIntent.FLAG_UPDATE_CURRENT)
@@ -61,8 +43,6 @@ class Mpd2BlogActivity : GithubPostBaseActivity() {
 
     }
 
-
-    // 2017-09-10-17.md
 
     // 2017-09-10-123456
     val generatedId by lazy {
@@ -154,9 +134,11 @@ class Mpd2BlogActivity : GithubPostBaseActivity() {
         writer.name("metadata")
                 .beginObject().endObject()
         writer.name("source")
-        writer.value(
+                .beginArray()
+                .value(
 """PostId: $postId
 Title:$title""")
+                .endArray()
 
         writer.endObject()
     }

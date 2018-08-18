@@ -169,7 +169,8 @@ data class Cell(
 
         writeMetadata(gson, writer)
 
-        writer.name("source").value(source)
+        writer.name("source")
+                .beginArray().value(source).endArray()
 
 
         writer.endObject()

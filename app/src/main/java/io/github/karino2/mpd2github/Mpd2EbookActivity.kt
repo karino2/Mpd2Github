@@ -1,13 +1,10 @@
 package io.github.karino2.mpd2github
 
 import android.net.Uri
-import karino2.livejournal.com.mpd2issue.Cell
 import karino2.livejournal.com.mpd2issue.Note
 
 
 class Mpd2EbookActivity : GithubPostBaseActivity() {
-
-
 
     fun Note.urlFnamePair() : Pair<String, String>{
         val yamlMap = this.firstCellToYamlMap() ?: throw IllegalArgumentException("No metadata cell at top")
@@ -17,8 +14,6 @@ class Mpd2EbookActivity : GithubPostBaseActivity() {
         return Pair(url, fname)
     }
 
-
-
     override val apiUrlForCheckTokenValidity : String
     get() {
         val (repoUrl, _) = ipynbNote?.let { it.urlFnamePair() } ?: throw IllegalArgumentException("No ipynb found.")
@@ -27,17 +22,12 @@ class Mpd2EbookActivity : GithubPostBaseActivity() {
         return "https://api.github.com/repos/${owner}/${repoName}/contents/ref=MeatPieDay"
     }
 
-
-
-
-
     override fun afterLogin(){
         try {
             val (repoUrl, fname) = ipynbNote?.let { it.urlFnamePair() } ?: throw IllegalArgumentException("No ipynb found.")
             val (owner, repoName) = Uri.parse(repoUrl).let {it.pathSegments.let { Pair(it[it.size - 2], it.last()) }}
 
             val apiUrl = "https://api.github.com/repos/${owner}/${repoName}/contents/${fname}"
-            // val apiUrlPath = "https://api.github.com/repos/${owner}/${repoName}/contents/"
 
             val base64Content = readBase64(ipynbUri!!)
 
@@ -47,7 +37,4 @@ class Mpd2EbookActivity : GithubPostBaseActivity() {
             showMessage("Invalid ipynb. ${e.message}")
         }
     }
-
-
-
 }
