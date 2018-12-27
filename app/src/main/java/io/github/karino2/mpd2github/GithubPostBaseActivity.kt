@@ -5,8 +5,9 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Bundle
-import android.support.v7.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatActivity
 import android.util.Base64
+import android.util.Log
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
