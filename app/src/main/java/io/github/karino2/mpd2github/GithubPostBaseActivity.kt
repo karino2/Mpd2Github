@@ -229,6 +229,7 @@ abstract class GithubPostBaseActivity : AppCompatActivity() {
     fun putContent(apiUrl: String, branchName: String, fname: String, base64Content: String) {
         "$apiUrl?ref=$branchName".httpGet()
                 .header("Authorization" to "token ${accessToken}")
+                .header("User-Agent" to "Mpd2Github")
                 .rx_responseObject(Content.Deserializer())
                 .subscribeOn(Schedulers.io())
                 .subscribe { (response, result) ->
@@ -248,8 +249,14 @@ abstract class GithubPostBaseActivity : AppCompatActivity() {
                     apiUrl.httpPut()
                             .body(json)
                             .header("Authorization" to "token ${accessToken}")
+                            .header("User-Agent" to "Mpd2Github")
                             .header("Content-Type" to "application/json")
                             .response { _, resp, res ->
+
+                                if(resp.statusCode == 422) {
+                                    val string = String(resp.data)
+                                    Log.d("Mpd2Github", string)
+                                }
 
 
                                 AndroidSchedulers.mainThread().scheduleDirect {
