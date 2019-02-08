@@ -11,6 +11,7 @@ import android.util.Log
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
+import com.github.kittinunf.fuel.core.Response
 import com.github.kittinunf.fuel.core.ResponseDeserializable
 import com.github.kittinunf.fuel.coroutines.awaitResponseResult
 import com.github.kittinunf.fuel.coroutines.awaitStringResponseResult
@@ -234,31 +235,9 @@ abstract class GithubPostBaseActivity : AppCompatActivity() , CoroutineScope {
         }
     }
 
-    fun putContent(apiUrl: String, branchName: String, fname: String, base64Content: String) {
+    fun putContentAndFinish(apiUrl: String, branchName: String, fname: String, base64Content: String) {
         launch {
-            val (request, response, result) = "$apiUrl?ref=$branchName".httpGet()
-                    .header("Authorization" to "token ${accessToken}")
-                    .awaitResponseResult(Content.Deserializer(), Dispatchers.IO)
-
-
-            val contParam = arrayListOfContentParameter(branchName, fname, base64Content)
-
-            result.fold(
-                    { cont -> contParam.add("sha" to cont.sha) },
-                    { _ /* err */ -> {} }
-            )
-
-
-            val json = jsonBuilder {
-                val obj = beginObject()
-                contParam.map { (k, v) -> obj.name(k).value(v) }
-            }
-
-            val (_, resp, res) = apiUrl.httpPut()
-                    .body(json)
-                    .header("Authorization" to "token ${accessToken}")
-                    .header("Content-Type" to "application/json")
-                    .awaitStringResponseResult(scope=Dispatchers.IO)
+            val resp = putContent(apiUrl, branchName, fname, base64Content)
 
             val msg = when (resp.statusCode) {
                 200, 201 -> "Done"
@@ -267,6 +246,33 @@ abstract class GithubPostBaseActivity : AppCompatActivity() , CoroutineScope {
             showMessage(msg)
             finish()
         }
+    }
+    
+    suspend fun putContent(apiUrl: String, branchName: String, fname: String, base64Content: String) : Response {
+        val (request, response, result) = "$apiUrl?ref=$branchName".httpGet()
+                .header("Authorization" to "token ${accessToken}")
+                .awaitResponseResult(Content.Deserializer(), Dispatchers.IO)
+
+
+        val contParam = arrayListOfContentParameter(branchName, fname, base64Content)
+
+        result.fold(
+                { cont -> contParam.add("sha" to cont.sha) },
+                { _ /* err */ -> {} }
+        )
+
+
+        val json = jsonBuilder {
+            val obj = beginObject()
+            contParam.map { (k, v) -> obj.name(k).value(v) }
+        }
+
+        val (_, resp, _) = apiUrl.httpPut()
+                .body(json)
+                .header("Authorization" to "token ${accessToken}")
+                .header("Content-Type" to "application/json")
+                .awaitStringResponseResult(scope = Dispatchers.IO)
+        return resp
     }
 
     fun Note.firstCellToYamlMap() : Map<String, String>? {

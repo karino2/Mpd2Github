@@ -6,13 +6,16 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.widget.EditText
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.NotificationCompat
-import android.widget.EditText
 import com.google.gson.internal.Streams
 import com.google.gson.stream.JsonWriter
 import io.reactivex.android.schedulers.AndroidSchedulers
 import karino2.livejournal.com.mpd2issue.Note
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.StringWriter
 import java.text.SimpleDateFormat
@@ -144,9 +147,18 @@ Title:$title""")
     }
 
 
+    val chunkSize = 700*1024
 
-    fun noteToBase64(note: Note): String {
-        return android.util.Base64.encodeToString(noteToContentJson(note).toByteArray(), android.util.Base64.DEFAULT)
+    fun noteToBase64(note: Note): List<String> {
+        val bytesArray = noteToContentJson(note).toByteArray()
+        val chunkNum = 1+ (bytesArray.size/chunkSize)
+        return (0 until chunkNum).map {idx ->
+            val begin = idx*chunkSize
+            val end = Math.min(bytesArray.size-1, (idx+1)*chunkSize)
+            bytesArray.slice(begin..end)
+        }.map {
+            android.util.Base64.encodeToString(it.toByteArray(), android.util.Base64.DEFAULT)
+        }
     }
 
     fun noteToContentJson(note: Note) : String {
@@ -182,12 +194,39 @@ Title:$title""")
 
     override fun afterLogin() {
         try {
-            val fname = "$postId.ipynb"
+            val note = ipynbNote ?: throw IllegalArgumentException("No ipynb found.")
 
-            val  apiUrl = "https://api.github.com/repos/${blogOwnerRepo!!}/contents/ipynb/$fname"
-            val base64Content = ipynbNote?.let{ noteToBase64(it) } ?: throw IllegalArgumentException("No ipynb found.")
+            launch {
 
-            putContent(apiUrl, "MeatPieDay", fname, base64Content)
+                val base64Contents = withContext(Dispatchers.IO) { noteToBase64(note) }
+
+                if(base64Contents.size == 1) {
+                    val fname = "$postId.ipynb"
+                    val  apiUrl = "https://api.github.com/repos/${blogOwnerRepo!!}/contents/ipynb/$fname"
+                    putContentAndFinish(apiUrl, "MeatPieDay", fname, base64Contents[0])
+                } else {
+                    launch {
+                        val  apiBaseUrl = "https://api.github.com/repos/${blogOwnerRepo!!}/contents/ipynb/split/$postId"
+                        val successes = base64Contents.withIndex().map {(idx, content) ->
+                            val fname = "%02d.txt".format(idx)
+                            val apiUrl = "$apiBaseUrl/$fname"
+                            val resp = putContent(apiUrl, "MeatPieDay", fname, content)
+                            resp.statusCode in 200..201
+                        }
+
+                        val msg = if(successes.all{it}) {
+                            "Done(${base64Contents.size})"
+                        }else {
+                            "Fail to post(${base64Contents.size})"
+                        }
+                        showMessage(msg)
+                        finish()
+                    }
+
+                }
+
+            }
+
         }catch(e: IllegalArgumentException){
             showMessage("Invalid ipynb. ${e.message}")
         }

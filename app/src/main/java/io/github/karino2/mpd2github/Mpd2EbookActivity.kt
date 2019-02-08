@@ -31,7 +31,7 @@ class Mpd2EbookActivity : GithubPostBaseActivity() {
 
             val base64Content = readBase64(ipynbUri!!)
 
-            putContent(apiUrl, "MeatPieDay", fname, base64Content)
+            putContentAndFinish(apiUrl, "MeatPieDay", fname, base64Content)
 
         }catch(e: IllegalArgumentException){
             showMessage("Invalid ipynb. ${e.message}")
