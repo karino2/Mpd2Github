@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import android.widget.EditText
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.NotificationCompat
@@ -13,9 +14,7 @@ import com.google.gson.internal.Streams
 import com.google.gson.stream.JsonWriter
 import io.reactivex.android.schedulers.AndroidSchedulers
 import karino2.livejournal.com.mpd2issue.Note
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 import java.io.File
 import java.io.StringWriter
 import java.text.SimpleDateFormat
@@ -207,14 +206,20 @@ Title:$title""")
                 } else {
                     launch {
                         val  apiBaseUrl = "https://api.github.com/repos/${blogOwnerRepo!!}/contents/ipynb/split/$postId"
-                        val successes = base64Contents.withIndex().map {(idx, content) ->
+                        val results = base64Contents.withIndex().map { (idx, content) ->
                             val fname = "%04d.txt".format(idx)
                             val apiUrl = "$apiBaseUrl/$fname"
-                            val resp = putContent(apiUrl, "MeatPieDay", fname, content)
-                            resp.statusCode in 200..201
+                            async {
+                                // Too short request cause error.
+                                delay(idx*5000L)
+                                putContent(apiUrl, "MeatPieDay", fname, content)
+                            }
                         }
 
-                        val msg = if(successes.all{it}) {
+                        val resps = awaitAll(*results.toTypedArray())
+                        // resps.forEach { Log.d("Mpd2Blog", "resp statusCode = ${it.statusCode}") }
+
+                        val msg = if(resps.all{it.statusCode in 200..201}) {
                             "Done(${base64Contents.size})"
                         }else {
                             "Fail to post(${base64Contents.size})"
