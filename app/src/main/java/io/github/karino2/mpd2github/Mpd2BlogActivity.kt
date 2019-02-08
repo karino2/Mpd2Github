@@ -208,7 +208,7 @@ Title:$title""")
                     launch {
                         val  apiBaseUrl = "https://api.github.com/repos/${blogOwnerRepo!!}/contents/ipynb/split/$postId"
                         val successes = base64Contents.withIndex().map {(idx, content) ->
-                            val fname = "%02d.txt".format(idx)
+                            val fname = "%04d.txt".format(idx)
                             val apiUrl = "$apiBaseUrl/$fname"
                             val resp = putContent(apiUrl, "MeatPieDay", fname, content)
                             resp.statusCode in 200..201

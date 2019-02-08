@@ -247,7 +247,7 @@ abstract class GithubPostBaseActivity : AppCompatActivity() , CoroutineScope {
             finish()
         }
     }
-    
+
     suspend fun putContent(apiUrl: String, branchName: String, fname: String, base64Content: String) : Response {
         val (request, response, result) = "$apiUrl?ref=$branchName".httpGet()
                 .header("Authorization" to "token ${accessToken}")
