@@ -12,21 +12,25 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import com.github.kittinunf.fuel.core.ResponseDeserializable
+import com.github.kittinunf.fuel.coroutines.awaitResponseResult
+import com.github.kittinunf.fuel.coroutines.awaitStringResponseResult
 import com.github.kittinunf.fuel.httpGet
 import com.github.kittinunf.fuel.httpPut
-import com.github.kittinunf.fuel.rx.rx_response
-import com.github.kittinunf.fuel.rx.rx_responseObject
-import com.github.kittinunf.result.Result
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.google.gson.stream.JsonWriter
-import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.schedulers.Schedulers
 import karino2.livejournal.com.mpd2issue.Cell
 import karino2.livejournal.com.mpd2issue.Note
+import kotlinx.coroutines.*
 import java.io.StringWriter
+import kotlin.coroutines.CoroutineContext
 
-abstract class GithubPostBaseActivity : AppCompatActivity() {
+abstract class GithubPostBaseActivity : AppCompatActivity() , CoroutineScope {
+    lateinit var job: Job
+    override val coroutineContext: CoroutineContext
+        get() = Dispatchers.Main + job
+
+
     companion object {
         fun getAppPreferences(ctx : Context) = ctx.getSharedPreferences("prefs", Context.MODE_PRIVATE)
 
@@ -75,8 +79,14 @@ abstract class GithubPostBaseActivity : AppCompatActivity() {
         }
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        job.cancel()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        job = Job()
         setContentView(R.layout.activity_login)
 
         intent?.let {
@@ -132,37 +142,35 @@ abstract class GithubPostBaseActivity : AppCompatActivity() {
         val url =
                 "https://github.com/login/oauth/access_token?client_id=${getString(R.string.client_id)}&client_secret=${getString(R.string.client_secret)}&code=$code"
 
-        url.httpGet()
-                .header("Accept" to "application/json")
-                .rx_responseObject(AuthenticationJson.Deserializer())
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe {(response, result) ->
-                    val (authjson, error) = result
+        launch {
+            val (request, response, result) = url.httpGet()
+                    .header("Accept" to "application/json")
+                    .awaitResponseResult(AuthenticationJson.Deserializer(), Dispatchers.IO)
 
-                    authjson?.let {
-                        prefs.edit()
-                                .putString("access_token", it.accessToken)
-                                .commit()
-                        afterLogin()
-                    }
-                }
+            val (authjson, error) = result
+
+            authjson?.let {
+                prefs.edit()
+                        .putString("access_token", it.accessToken)
+                        .commit()
+                afterLogin()
+            }
+
+        }
     }
 
     fun checkTokenValidity(accessToken: String){
-        apiUrlForCheckTokenValidity.httpGet()
-                .header("Authorization" to "token ${accessToken}")
-                .rx_response()
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe { (response, result) ->
-                    if(response.statusCode == 200) {
-                        afterLogin()
-                    } else {
-                        webView.loadUrl(authorizeUrl)
-                    }
-
-                }
+        launch {
+           val  (_, response, result) =
+                   apiUrlForCheckTokenValidity.httpGet()
+                           .header("Authorization" to "token ${accessToken}")
+                           .awaitStringResponseResult(scope=Dispatchers.IO)
+            if(response.statusCode == 200) {
+                afterLogin()
+            } else {
+                webView.loadUrl(authorizeUrl)
+            }
+        }
     }
 
     // if this function return false, checkValidTokenAndGotoTopIfValid does nothing.
@@ -227,42 +235,38 @@ abstract class GithubPostBaseActivity : AppCompatActivity() {
     }
 
     fun putContent(apiUrl: String, branchName: String, fname: String, base64Content: String) {
-        "$apiUrl?ref=$branchName".httpGet()
-                .header("Authorization" to "token ${accessToken}")
-                .rx_responseObject(Content.Deserializer())
-                .subscribeOn(Schedulers.io())
-                .subscribe { (response, result) ->
-                    val contParam = arrayListOfContentParameter(branchName, fname, base64Content)
-
-                    when (result) {
-                        is Result.Success -> {
-                            contParam.add("sha" to result.get().sha)
-                        }
-                    }
-
-                    val json = jsonBuilder {
-                        val obj = beginObject()
-                        contParam.map { (k, v) -> obj.name(k).value(v) }
-                    }
-
-                    apiUrl.httpPut()
-                            .body(json)
-                            .header("Authorization" to "token ${accessToken}")
-                            .header("Content-Type" to "application/json")
-                            .response { _, resp, res ->
+        launch {
+            val (request, response, result) = "$apiUrl?ref=$branchName".httpGet()
+                    .header("Authorization" to "token ${accessToken}")
+                    .awaitResponseResult(Content.Deserializer(), Dispatchers.IO)
 
 
-                                AndroidSchedulers.mainThread().scheduleDirect {
-                                    val msg = when (resp.statusCode) {
-                                        200, 201 -> "Done"
-                                        else -> "Fail to post."
-                                    }
-                                    showMessage(msg)
-                                    finish()
-                                }
+            val contParam = arrayListOfContentParameter(branchName, fname, base64Content)
 
-                            }
-                }
+            result.fold(
+                    { cont -> contParam.add("sha" to cont.sha) },
+                    { _ /* err */ -> {} }
+            )
+
+
+            val json = jsonBuilder {
+                val obj = beginObject()
+                contParam.map { (k, v) -> obj.name(k).value(v) }
+            }
+
+            val (_, resp, res) = apiUrl.httpPut()
+                    .body(json)
+                    .header("Authorization" to "token ${accessToken}")
+                    .header("Content-Type" to "application/json")
+                    .awaitStringResponseResult(scope=Dispatchers.IO)
+
+            val msg = when (resp.statusCode) {
+                200, 201 -> "Done"
+                else -> "Fail to post."
+            }
+            showMessage(msg)
+            finish()
+        }
     }
 
     fun Note.firstCellToYamlMap() : Map<String, String>? {

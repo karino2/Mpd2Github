@@ -107,7 +107,7 @@ class Mpd2BlogActivity : GithubPostBaseActivity() {
 
     override val apiUrlForCheckTokenValidity : String
         get() {
-            return "https://api.github.com/repos/${blogOwnerRepo!!}/contents/ref=MeatPieDay"
+            return "https://api.github.com/repos/${blogOwnerRepo!!}/contents/?ref=MeatPieDay"
         }
 
     fun Uri.toName() = File(this.path).name
