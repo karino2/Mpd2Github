@@ -216,7 +216,7 @@ Title:$title""")
                             }
                         }
 
-                        val resps = awaitAll(*results.toTypedArray())
+                        val resps = results.awaitAll()
                         // resps.forEach { Log.d("Mpd2Blog", "resp statusCode = ${it.statusCode}") }
 
                         val msg = if(resps.all{it.statusCode in 200..201}) {
