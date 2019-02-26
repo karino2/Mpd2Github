@@ -153,8 +153,8 @@ Title:$title""")
         val chunkNum = 1+ (bytesArray.size/chunkSize)
         return (0 until chunkNum).map {idx ->
             val begin = idx*chunkSize
-            val end = Math.min(bytesArray.size-1, (idx+1)*chunkSize)
-            bytesArray.slice(begin..end)
+            val end = Math.min(bytesArray.size, (idx+1)*chunkSize)
+            bytesArray.slice(begin until end)
         }.map {
             android.util.Base64.encodeToString(it.toByteArray(), android.util.Base64.DEFAULT)
         }
